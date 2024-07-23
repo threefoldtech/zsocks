@@ -1,0 +1,48 @@
+name: Flist creation (development)
+on: 
+  release:
+    types: [published]
+jobs:
+  build:
+    name: Build and upload
+    runs-on: ubuntu-latest
+    steps:
+
+    - name: Setup Rust
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        override: true
+
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Build binaries
+      run: cargo build --release
+
+    - name: Collecting files
+      run: |
+        archive=${{ github.workspace }}/archive
+        mkdir -p ${archive}/bin
+        cp target/release/zsocks ${archive}/bin/
+
+    - name: Set tag of build
+      id: tag
+      run: |
+          ref="${{ github.event.release.tag_name }}"
+          echo "reference=${ref}" >> $GITHUB_OUTPUT
+
+    - name: Set version of build
+      id: version
+      run: |
+          echo "version=v$(date +%y%m%d.%-H%M%S.0)" >> $GITHUB_OUTPUT
+        
+    - name: Publish flist (${{ github.sha }})
+      if: success()
+      uses: threefoldtech/publish-flist@master
+      with:
+        token: ${{ secrets.TFCONNECT_TOKEN }}
+        action: publish
+        user: iwantf.3bot
+        root: archive
+        name: zsocks-${{ github.sha }}.flist
